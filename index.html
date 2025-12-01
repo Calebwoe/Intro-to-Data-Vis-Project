@@ -6,14 +6,36 @@
   <script src="https://d3js.org/d3.v7.min.js"></script>
 
   <style>
-    body { font-family: Arial; }
+    body { 
+      font-family: Arial; 
+      margin: 20px;
+    }
+
     .facet-title {
       font-size: 12px;
       font-weight: bold;
       text-anchor: middle;
     }
+
     .dot {
-      opacity: 0.7;
+      opacity: 0.75;
+    }
+
+    .button-row {
+      margin-bottom: 20px;
+    }
+
+    .chart-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+      gap: 25px;
+    }
+
+    button {
+      margin-right: 10px;
+      padding: 6px 12px;
+      font-size: 14px;
+      cursor: pointer;
     }
   </style>
 </head>
@@ -22,26 +44,25 @@
 
 <h2>NORS Outbreaks by Etiology</h2>
 
-<label for="metric">Select Metric:</label>
-<select id="metric">
-  <option value="Deaths" selected>Deaths</option>
-  <option value="Hospitalizations">Hospitalizations</option>
-  <option value="Illnesses">Illnesses</option>
-</select>
+<div class="button-row">
+  <button id="btnDeaths">Deaths</button>
+  <button id="btnHosp">Hospitalizations</button>
+  <button id="btnIll">Illnesses</button>
+</div>
 
-<div id="chart"></div>
+<div id="chart" class="chart-grid"></div>
 
 <script>
 
-// Chart dimensions
+// Scatterplot dimensions
 const facetWidth = 250;
 const facetHeight = 200;
 const margin = { top: 30, right: 20, bottom: 30, left: 40 };
 
-// Load data
+// Load the CSV file
 d3.csv("nors_cleaned.csv").then(data => {
 
-  // Convert numeric values
+  // Convert numerics
   data.forEach(d => {
     d.Year = +d.Year;
     d.Illnesses = +d.Illnesses;
@@ -49,46 +70,44 @@ d3.csv("nors_cleaned.csv").then(data => {
     d.Deaths = +d.Deaths;
   });
 
-  // Unique etiologies
+  // Extract unique etiologies
   const etiologies = Array.from(new Set(data.map(d => d.Etiology)));
 
-  // Create container
-  const container = d3.select("#chart")
-    .append("div")
-    .style("display", "grid")
-    .style("grid-template-columns", "repeat(auto-fill, 260px)")
-    .style("gap", "20px");
+  const container = d3.select("#chart");
 
-  function updateChart(metric) {
-    container.selectAll("*").remove(); // clear previous facets
+  // -------- DRAW FACETS FUNCTION ----------
+  function drawFacets(metric) {
+    container.selectAll("*").remove(); // Clear old plots
 
     etiologies.forEach(et => {
       const subset = data.filter(d => d.Etiology === et);
 
-      const svg = container
-        .append("svg")
+      const svg = container.append("svg")
         .attr("width", facetWidth)
         .attr("height", facetHeight);
 
+      // X scale (years)
       const x = d3.scaleLinear()
         .domain(d3.extent(data, d => d.Year))
         .range([margin.left, facetWidth - margin.right]);
 
+      // Y scale (selected metric)
       const y = d3.scaleLinear()
-        .domain([0, d3.max(subset, d => d[metric]) || 1])
+        .domain([0, d3.max(subset, d => d[metric]) || 0])
         .nice()
         .range([facetHeight - margin.bottom, margin.top]);
 
-      // Axes
+      // X axis
       svg.append("g")
-        .attr("transform", `translate(0,${facetHeight - margin.bottom})`)
+        .attr("transform", `translate(0, ${facetHeight - margin.bottom})`)
         .call(d3.axisBottom(x).ticks(5).tickFormat(d3.format("d")));
 
+      // Y axis
       svg.append("g")
-        .attr("transform", `translate(${margin.left},0)`)
+        .attr("transform", `translate(${margin.left}, 0)`)
         .call(d3.axisLeft(y).ticks(4));
 
-      // Points
+      // Scatter points
       svg.append("g")
         .selectAll("circle")
         .data(subset)
@@ -109,13 +128,13 @@ d3.csv("nors_cleaned.csv").then(data => {
     });
   }
 
-  // Initialize with Deaths
-  updateChart("Deaths");
+  // ------- Initialize with Deaths -------
+  drawFacets("Deaths");
 
-  // Dropdown handler
-  d3.select("#metric").on("change", event => {
-    updateChart(event.target.value);
-  });
+  // ------- Button event listeners -------
+  d3.select("#btnDeaths").on("click", () => drawFacets("Deaths"));
+  d3.select("#btnHosp").on("click", () => drawFacets("Hospitalizations"));
+  d3.select("#btnIll").on("click", () => drawFacets("Illnesses"));
 
 });
 
