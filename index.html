@@ -1,171 +1,125 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <title>Faceted Scatterplot with Year Slider - D3 Example</title>
-    <script src="https://d3js.org/d3.v7.min.js"></script>
-    <style>
-        body { font-family: Arial, sans-serif; }
-        .facet-title { text-anchor: middle; font-size: 14px; font-weight: bold; }
-        .axis-label { font-size: 12px; }
-        .slider-label { margin-right: 10px; }
-        .legend { font-size: 12px; }
-        .scatter-dot { opacity: 0.8; }
-        .facet-border { fill: none; stroke: #ccc; stroke-width: 1px; }
-    </style>
-</head>
-<body>
-    <h2>Faceted Scatterplot of Illness Outbreaks by State and Year</h2>
-    <div>
-        <label class="slider-label" for="yearSlider">Year:</label>
-        <input type="range" id="yearSlider" min="2010" max="2011" value="2010" step="1">
-        <span id="yearValue">2010</span>
-    </div>
-    <svg id="chart" width="900" height="500"></svg>
-    <script>
-    // Example data
-    const dataCsv = `State,Year,Etiology,Illnesses,Hospitalizations,Deaths;
+  <meta charset="utf-8">
+  <title>NORS Faceted Scatterplots</title>
+  <script src="https://d3js.org/d3.v7.min.js"></script>
 
-    // Parse data
-    const data = d3.csvParse(dataCsv, d => ({
-        State: d.State,
-        Year: +d.Year,
-        Etiology: d.Etiology,
-        Illnesses: +d.Illnesses,
-        Hospitalizations: +d.Hospitalizations,
-        Deaths: +d.Deaths
-    }));
-
-    // Set up color scale for Etiology
-    const etiologies = [...new Set(data.map(d => d.Etiology))];
-    const color = d3.scaleOrdinal(d3.schemeCategory10)
-        .domain(etiologies);
-
-    // Facet by State for demonstration (adjust as needed)
-    const states = [...new Set(data.map(d => d.State))];
-
-    // Slider domain
-    const years = [...new Set(data.map(d => d.Year))].sort();
-    d3.select("#yearSlider")
-        .attr("min", d3.min(years))
-        .attr("max", d3.max(years))
-        .attr("value", years[0]);
-
-    // SVG and facet settings
-    const svg = d3.select("#chart");
-    const width = +svg.attr("width");
-    const height = +svg.attr("height");
-
-    const facetCols = 2;
-    const facetWidth = 400;
-    const facetHeight = 200;
-    const margin = {top: 35, right: 40, bottom: 45, left: 50};
-
-    // We'll build a grid of (small multiple) scatterplots
-    function update(year) {
-        // Filter data by year
-        const filtered = data.filter(d => d.Year === +year);
-
-        svg.selectAll("*").remove();
-
-        // Build x and y scales based on max in entire dataset for comparability
-        const x = d3.scaleLinear()
-            .domain([0, d3.max(data, d => d.Illnesses) || 1])
-            .nice()
-            .range([margin.left, facetWidth - margin.right]);
-
-        const y = d3.scaleLinear()
-            .domain([0, d3.max(data, d => d.Hospitalizations) || 1])
-            .nice()
-            .range([facetHeight - margin.bottom, margin.top]);
-
-        // Facet for each state
-        states.forEach((state, i) => {
-            const col = i % facetCols, row = Math.floor(i / facetCols);
-            const facetGroup = svg.append("g")
-                .attr("transform", `translate(${col * facetWidth},${row * facetHeight})`);
-
-            // Facet border
-            facetGroup.append("rect")
-                .attr("class", "facet-border")
-                .attr("x", 0).attr("y", 0)
-                .attr("width", facetWidth)
-                .attr("height", facetHeight);
-
-            // Data for this facet
-            const facetData = filtered.filter(d => d.State === state);
-
-            // Draw dots
-            facetGroup.selectAll("circle")
-                .data(facetData)
-                .enter().append("circle")
-                .attr("class", "scatter-dot")
-                .attr("cx", d => x(d.Illnesses))
-                .attr("cy", d => y(d.Hospitalizations))
-                .attr("r", 7)
-                .attr("fill", d => color(d.Etiology))
-                .attr("stroke", "#333")
-                .append("title")
-                .text(d => `${d.Etiology} | Deaths: ${d.Deaths}`);
-
-            // X Axis
-            facetGroup.append("g")
-                .attr("transform", `translate(0,${facetHeight - margin.bottom})`)
-                .call(d3.axisBottom(x).ticks(5));
-
-            facetGroup.append("text")
-                .attr("x", facetWidth / 2)
-                .attr("y", facetHeight - 5)
-                .attr("class", "axis-label")
-                .attr("text-anchor", "middle")
-                .text("Illnesses");
-
-            // Y Axis
-            facetGroup.append("g")
-                .attr("transform", `translate(${margin.left},0)`)
-                .call(d3.axisLeft(y).ticks(5));
-
-            facetGroup.append("text")
-                .attr("transform", "rotate(-90)")
-                .attr("x", -facetHeight / 2)
-                .attr("y", 16)
-                .attr("class", "axis-label")
-                .attr("text-anchor", "middle")
-                .text("Hospitalizations");
-
-            // Facet Title
-            facetGroup.append("text")
-                .attr("class", "facet-title")
-                .attr("x", facetWidth / 2)
-                .attr("y", margin.top - 15)
-                .text(state);
-        });
-
-        // Draw Legend (in the bottom right corner of main SVG)
-        const legend = svg.append("g").attr("class", "legend")
-            .attr("transform", `translate(${width - 170},${height - 10 - 22 * etiologies.length})`);
-        etiologies.forEach((et, i) => {
-            legend.append("rect")
-                .attr("x", 0).attr("y", i * 22)
-                .attr("width", 18).attr("height", 18)
-                .attr("fill", color(et));
-            legend.append("text")
-                .attr("x", 26)
-                .attr("y", i * 22 + 15)
-                .text(et);
-        });
+  <style>
+    body { font-family: Arial; }
+    .facet-title {
+      font-size: 12px;
+      font-weight: bold;
+      text-anchor: middle;
     }
+    .dot {
+      opacity: 0.7;
+    }
+  </style>
+</head>
 
-    // Initial draw
-    update(years[0]);
+<body>
 
-    // Handle slider changes
-    d3.select("#yearSlider").on("input", function() {
-        const yr = +this.value;
-        d3.select("#yearValue").text(yr);
-        update(yr);
+<h2>NORS Outbreaks by Etiology</h2>
+
+<label for="metric">Select Metric:</label>
+<select id="metric">
+  <option value="Deaths" selected>Deaths</option>
+  <option value="Hospitalizations">Hospitalizations</option>
+  <option value="Illnesses">Illnesses</option>
+</select>
+
+<div id="chart"></div>
+
+<script>
+
+// Chart dimensions
+const facetWidth = 250;
+const facetHeight = 200;
+const margin = { top: 30, right: 20, bottom: 30, left: 40 };
+
+// Load data
+d3.csv("nors_cleaned.csv").then(data => {
+
+  // Convert numeric values
+  data.forEach(d => {
+    d.Year = +d.Year;
+    d.Illnesses = +d.Illnesses;
+    d.Hospitalizations = +d.Hospitalizations;
+    d.Deaths = +d.Deaths;
+  });
+
+  // Unique etiologies
+  const etiologies = Array.from(new Set(data.map(d => d.Etiology)));
+
+  // Create container
+  const container = d3.select("#chart")
+    .append("div")
+    .style("display", "grid")
+    .style("grid-template-columns", "repeat(auto-fill, 260px)")
+    .style("gap", "20px");
+
+  function updateChart(metric) {
+    container.selectAll("*").remove(); // clear previous facets
+
+    etiologies.forEach(et => {
+      const subset = data.filter(d => d.Etiology === et);
+
+      const svg = container
+        .append("svg")
+        .attr("width", facetWidth)
+        .attr("height", facetHeight);
+
+      const x = d3.scaleLinear()
+        .domain(d3.extent(data, d => d.Year))
+        .range([margin.left, facetWidth - margin.right]);
+
+      const y = d3.scaleLinear()
+        .domain([0, d3.max(subset, d => d[metric]) || 1])
+        .nice()
+        .range([facetHeight - margin.bottom, margin.top]);
+
+      // Axes
+      svg.append("g")
+        .attr("transform", `translate(0,${facetHeight - margin.bottom})`)
+        .call(d3.axisBottom(x).ticks(5).tickFormat(d3.format("d")));
+
+      svg.append("g")
+        .attr("transform", `translate(${margin.left},0)`)
+        .call(d3.axisLeft(y).ticks(4));
+
+      // Points
+      svg.append("g")
+        .selectAll("circle")
+        .data(subset)
+        .enter()
+        .append("circle")
+          .attr("class", "dot")
+          .attr("cx", d => x(d.Year))
+          .attr("cy", d => y(d[metric]))
+          .attr("r", 4)
+          .attr("fill", "steelblue");
+
+      // Title
+      svg.append("text")
+        .attr("class", "facet-title")
+        .attr("x", facetWidth / 2)
+        .attr("y", margin.top - 10)
+        .text(et);
     });
-    </script>
-    <p>Scatterplot facets compare States. Axes: Illnesses (x) vs Hospitalizations (y). Point color = Etiology. Tooltip shows Deaths. Use the slider to switch between Years.</p>
+  }
+
+  // Initialize with Deaths
+  updateChart("Deaths");
+
+  // Dropdown handler
+  d3.select("#metric").on("change", event => {
+    updateChart(event.target.value);
+  });
+
+});
+
+</script>
+
 </body>
 </html>
