@@ -2,7 +2,7 @@
 <html>
 <head>
   <meta charset="utf-8">
-  <title>NORS Faceted Scatterplots</title>
+  <title>NORS Faceted Scatterplots (Top 8 Etiologies)</title>
   <script src="https://d3js.org/d3.v7.min.js"></script>
 
   <style>
@@ -27,7 +27,7 @@
 
     .chart-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+      grid-template-columns: repeat(4, 1fr);
       gap: 25px;
     }
 
@@ -42,7 +42,7 @@
 
 <body>
 
-<h2>NORS Outbreaks by Etiology</h2>
+<h2>NORS Outbreaks — Top 8 Etiologies</h2>
 
 <div class="button-row">
   <button id="btnDeaths">Deaths</button>
@@ -54,15 +54,27 @@
 
 <script>
 
+// *** Top 8 etiologies you selected ***
+const topEtiologies = new Set([
+  "Norovirus",
+  "Salmonella",
+  "escherichia coli, shiga toxin-producing",
+  "Campylobacter",
+  "Shigella",
+  "Cryptosporidium",
+  "legionella pneumophila",
+  "clostridium perfringens"
+]);
+
 // Scatterplot dimensions
 const facetWidth = 250;
 const facetHeight = 200;
 const margin = { top: 30, right: 20, bottom: 30, left: 40 };
 
-// Load the CSV file
+// Load CSV
 d3.csv("nors_cleaned.csv").then(data => {
 
-  // Convert numerics
+  // Convert numeric fields
   data.forEach(d => {
     d.Year = +d.Year;
     d.Illnesses = +d.Illnesses;
@@ -70,44 +82,41 @@ d3.csv("nors_cleaned.csv").then(data => {
     d.Deaths = +d.Deaths;
   });
 
-  // Extract unique etiologies
-  const etiologies = Array.from(new Set(data.map(d => d.Etiology)));
+  // Filter to only top 8
+  const filteredData = data.filter(d => topEtiologies.has(d.Etiology));
+
+  const etiologies = Array.from(topEtiologies);
 
   const container = d3.select("#chart");
 
-  // -------- DRAW FACETS FUNCTION ----------
+  // DRAW ALL FACETS
   function drawFacets(metric) {
-    container.selectAll("*").remove(); // Clear old plots
+    container.selectAll("*").remove();
 
     etiologies.forEach(et => {
-      const subset = data.filter(d => d.Etiology === et);
+      const subset = filteredData.filter(d => d.Etiology === et);
 
       const svg = container.append("svg")
         .attr("width", facetWidth)
         .attr("height", facetHeight);
 
-      // X scale (years)
       const x = d3.scaleLinear()
-        .domain(d3.extent(data, d => d.Year))
+        .domain(d3.extent(filteredData, d => d.Year))
         .range([margin.left, facetWidth - margin.right]);
 
-      // Y scale (selected metric)
       const y = d3.scaleLinear()
         .domain([0, d3.max(subset, d => d[metric]) || 0])
         .nice()
         .range([facetHeight - margin.bottom, margin.top]);
 
-      // X axis
       svg.append("g")
         .attr("transform", `translate(0, ${facetHeight - margin.bottom})`)
         .call(d3.axisBottom(x).ticks(5).tickFormat(d3.format("d")));
 
-      // Y axis
       svg.append("g")
         .attr("transform", `translate(${margin.left}, 0)`)
         .call(d3.axisLeft(y).ticks(4));
 
-      // Scatter points
       svg.append("g")
         .selectAll("circle")
         .data(subset)
@@ -119,7 +128,6 @@ d3.csv("nors_cleaned.csv").then(data => {
           .attr("r", 4)
           .attr("fill", "steelblue");
 
-      // Title
       svg.append("text")
         .attr("class", "facet-title")
         .attr("x", facetWidth / 2)
@@ -128,10 +136,8 @@ d3.csv("nors_cleaned.csv").then(data => {
     });
   }
 
-  // ------- Initialize with Deaths -------
   drawFacets("Deaths");
 
-  // ------- Button event listeners -------
   d3.select("#btnDeaths").on("click", () => drawFacets("Deaths"));
   d3.select("#btnHosp").on("click", () => drawFacets("Hospitalizations"));
   d3.select("#btnIll").on("click", () => drawFacets("Illnesses"));
